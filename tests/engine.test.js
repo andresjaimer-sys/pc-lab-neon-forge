@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {inspect,cost} from '../src/engine.js';
+const base={cpu:'7600',board:'b650m',ram:'corsair32',gpu:'4070',ssd:'nv3-1000',psu:'a750',case:'4000d'};
+test('retail cooler completes a seven-part build without charging twice',()=>{const r=inspect(base);assert.equal(r.errors.length,0);assert.equal(r.missing.length,0);assert.equal(r.stock,true);});
+test('AM5 rejects DDR4 in both insertion orders',()=>{assert.ok(inspect({...base,ram:'lpx16'}).errors.length);assert.ok(inspect({ram:'lpx16',cpu:'7600'}).errors.length);});
+test('case change rechecks motherboard and cooler',()=>{assert.ok(inspect({...base,board:'tomahawk',case:'q300l'}).errors.length);assert.ok(inspect({...base,case:'q300l',cooler:'ak620'}).errors.length);assert.equal(inspect({...base,case:'q300l',cooler:'ak400'}).errors.length,0);});
+test('AIO thickness reduces GPU clearance conservatively',()=>{assert.equal(inspect({...base,gpu:'4070super',cooler:'h100i'}).gpuSpace,308);assert.equal(inspect({...base,gpu:'4070super',cooler:'h100i'}).errors.length,0);});
+test('missing native GPU connector requires review instead of false absolute rejection',()=>{const r=inspect({...base,gpu:'4070super',psu:'a650'});assert.equal(r.errors.length,0);assert.ok(r.warnings.some(x=>x.includes('adaptador')));});
+test('CPU without bundled cooler stays incomplete',()=>{assert.ok(inspect({...base,cpu:'7600x'}).missing.includes('Refrigeración'));});
+test('second same-model SSD costs twice and unknown prices never become zero quotes',()=>{assert.equal(cost({ssd:'nv3-1000',ssd2:'nv3-1000'},{'nv3-1000':300000}).total,600000);assert.equal(cost(base,{}).unknown,7);});
+test('forged or unknown slots cannot enter the build',()=>{assert.equal(inspect({cpu:'nv3-1000',evil:'7600'}).b.cpu,undefined);assert.equal(Object.keys(inspect({cpu:'nv3-1000',evil:'7600'}).b).length,0);});
